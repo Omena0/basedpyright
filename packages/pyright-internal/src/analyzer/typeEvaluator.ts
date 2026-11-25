@@ -16422,9 +16422,56 @@ export function createTypeEvaluator(
             if (exprResult.isIncomplete) {
                 isIncomplete = true;
             }
+
+            const yieldedType = getYieldTypeFromYieldedValue(exprResult.type);
+            if (yieldedType) {
+                sentType = yieldedType;
+            }
         }
 
         return { type: sentType || UnknownType.create(), isIncomplete };
+    }
+
+    function getYieldTypeFromYieldedValue(yieldedValueType: Type): Type | undefined {
+        const yieldTypes: Type[] = [];
+        doForEachSubtype(yieldedValueType, (yieldedSubtype) => {
+            if (!isClassInstance(yieldedSubtype)) {
+                return;
+            }
+
+            const yieldTypeIsBase = yieldedSubtype.shared.mro.find(
+                (baseClass) =>
+                    isClass(baseClass) &&
+                    baseClass.shared.name === 'YieldTypeIs' &&
+                    ClassType.getTypeParams(baseClass).length === 1 &&
+                    ClassType.getTypeParams(baseClass)[0].shared.isDefaultExplicit &&
+                    isClass(ClassType.getTypeParams(baseClass)[0].shared.defaultType) &&
+                    (ClassType.getTypeParams(baseClass)[0].shared.defaultType as ClassType).shared.name ===
+                        '_InferYieldType'
+            );
+            if (!yieldTypeIsBase || !isClass(yieldTypeIsBase)) {
+                return;
+            }
+
+            const specializedBase = specializeForBaseClass(yieldedSubtype, yieldTypeIsBase);
+            const declaredYieldType = specializedBase.priv.typeArgs?.[0];
+            if (!declaredYieldType) {
+                yieldTypes.push(UnknownType.create());
+                return;
+            }
+
+            if (
+                isClass(declaredYieldType) &&
+                declaredYieldType.shared.name === '_InferYieldType'
+            ) {
+                yieldTypes.push(yieldedSubtype.priv.typeArgs?.[0] ?? UnknownType.create());
+                return;
+            }
+
+            yieldTypes.push(declaredYieldType);
+        });
+
+        return yieldTypes.length > 0 ? combineTypes(yieldTypes) : undefined;
     }
 
     function getTypeOfYieldFrom(node: YieldFromNode): TypeResult {
