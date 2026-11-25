@@ -267,24 +267,22 @@ export class TypeInlayHintsWalker extends ParseTreeWalker {
             return;
         }
 
-        if (this._settings.genericTypes) {
-            const callResult = evaluator.getTypeResult(node);
-            if (callResult?.overloadsUsedForCall?.length === 1) {
-                const returnType = FunctionType.getEffectiveReturnType(callResult.overloadsUsedForCall[0]);
-                if (
-                    returnType &&
-                    isClassInstance(returnType) &&
-                    returnType.shared.name === 'ReturnsAfter' &&
-                    returnType.priv.typeArgs?.length === 2
-                ) {
-                    const { imports, value } = this._printType(node, returnType);
-                    this.featureItems.push({
-                        inlayHintType: 'generic',
-                        position: this._endOfNode(node),
-                        value: ` -> ${value}`,
-                        imports: imports.result,
-                    });
-                }
+        const callResult = evaluator.getTypeResult(node);
+        if (callResult?.overloadsUsedForCall?.length === 1) {
+            const returnType = FunctionType.getEffectiveReturnType(callResult.overloadsUsedForCall[0]);
+            if (
+                returnType &&
+                isClassInstance(returnType) &&
+                returnType.shared.name === 'ReturnsAfter' &&
+                returnType.priv.typeArgs?.length === 2
+            ) {
+                const { imports, value } = this._printType(node, returnType);
+                this.featureItems.push({
+                    inlayHintType: 'generic',
+                    position: this._endOfNode(node),
+                    value: ` -> ${value}`,
+                    imports: imports.result,
+                });
             }
         }
 

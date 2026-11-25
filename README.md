@@ -17,6 +17,7 @@ This fork (Omena0/basedpyright) adds support for:
 YieldTypeIs[T]: Annotates the return type of a yield.
 LiteralType[T]: Annotates that `T` should be kept as a Literal
 ReturnsAfter[T, R]: Annotates that a function takes `T` long to run. Returns `R`.
+Literal[float]: Before you couldn't annotate float literals. Now you can.
 
 <!-- --8<-- [end:header] -->
 
