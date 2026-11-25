@@ -12,9 +12,11 @@
 
 Basedpyright is a fork of [pyright](https://github.com/microsoft/pyright) with various type checking improvements, pylance features and more.
 
-This fork (Omena0/basedpyright) adds support for YieldTypeIs[T], which annotates the return type of a yield.
+This fork (Omena0/basedpyright) adds support for:
 
-Not intended to merge, as this is a feature unsupported by Python.
+YieldTypeIs[T]: Annotates the return type of a yield.
+LiteralType[T]: Annotates that `T` should be kept as a Literal
+ReturnsAfter[T, R]: Annotates that a function takes `T` long to run. Returns `R`.
 
 <!-- --8<-- [end:header] -->
 

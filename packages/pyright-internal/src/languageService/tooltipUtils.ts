@@ -897,10 +897,9 @@ export function limitOverloadBasedOnCall<T extends Type>(
     type: T,
     node: ExpressionNode
 ): T | FunctionType | OverloadedType {
-    // If it's an overloaded function, see if it's part of a call expression.
-    // If so, we may be able to eliminate some of the overloads based on
-    // the overload resolution.
-    if (!isOverloaded(type) || node.nodeType !== ParseNodeType.Name) {
+    // If it's part of a call expression, use the signature selected for that call.
+    // This also shows inferred type arguments for effect-annotated functions.
+    if (node.nodeType !== ParseNodeType.Name) {
         return type;
     }
 
@@ -910,15 +909,23 @@ export function limitOverloadBasedOnCall<T extends Type>(
     }
 
     const callTypeResult = evaluator.getTypeResult(callNode);
-    if (!callTypeResult || !callTypeResult.overloadsUsedForCall || callTypeResult.overloadsUsedForCall.length === 0) {
+    if (!callTypeResult?.overloadsUsedForCall?.length) {
         return type;
     }
 
-    if (callTypeResult.overloadsUsedForCall.length === 1) {
+    if (isOverloaded(type)) {
+        if (callTypeResult.overloadsUsedForCall.length === 1) {
+            return callTypeResult.overloadsUsedForCall[0];
+        }
+
+        return OverloadedType.create(callTypeResult.overloadsUsedForCall);
+    }
+
+    if (isFunction(type) && callTypeResult.overloadsUsedForCall.length === 1) {
         return callTypeResult.overloadsUsedForCall[0];
     }
 
-    return OverloadedType.create(callTypeResult.overloadsUsedForCall);
+    return type;
 }
 
 export function getTypeForToolTip(evaluator: TypeEvaluator, node: ExpressionNode) {

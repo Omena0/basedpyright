@@ -13388,7 +13388,9 @@ export function createTypeEvaluator(
 
         // Can we safely ignore the inference context, either because it's not provided
         // or will have no effect? If so, avoid the extra work.
-        const returnType = inferenceContext?.returnTypeOverride ?? getEffectiveReturnType(type);
+        const returnType = getReturnsAfterValueType(
+            inferenceContext?.returnTypeOverride ?? getEffectiveReturnType(type)
+        );
         if (!returnType || !requiresSpecialization(returnType)) {
             expectedType = undefined;
         }
@@ -13786,6 +13788,21 @@ export function createTypeEvaluator(
                 eliminateUnsolvedInUnions,
             },
         });
+
+        let specializedOverload = type;
+        if (isReturnsAfterType(returnType)) {
+            const specializedFunction = solveAndApplyConstraints(type, constraints, {
+                replaceUnsolved: {
+                    scopeIds: getTypeVarScopeIds(type),
+                    tupleClassType: getTupleClassType(),
+                },
+            });
+            if (isFunction(specializedFunction)) {
+                specializedOverload = specializedFunction;
+            }
+        }
+
+        specializedReturnType = getReturnsAfterValueType(specializedReturnType);
         specializedReturnType = addConditionToType(specializedReturnType, typeCondition, { skipBoundTypeVars: true });
 
         // If the function includes a ParamSpec and the captured signature(s) includes
@@ -13828,7 +13845,7 @@ export function createTypeEvaluator(
             isTypeIncomplete,
             activeParam: matchResults.activeParam,
             specializedInitSelfType,
-            overloadsUsedForCall: argumentErrors ? [] : [type],
+            overloadsUsedForCall: argumentErrors ? [] : [specializedOverload],
         };
     }
 
@@ -13966,7 +13983,10 @@ export function createTypeEvaluator(
             return {
                 returnType:
                     possibleType && !isAnyOrUnknown(possibleType)
-                        ? UnknownType.createPossibleType(possibleType, /* isIncomplete */ false)
+                        ? UnknownType.createPossibleType(
+                              getReturnsAfterValueType(possibleType),
+                              /* isIncomplete */ false
+                          )
                         : undefined,
                 argumentErrors: true,
                 activeParam: matchResults.activeParam,
@@ -17914,6 +17934,18 @@ export function createTypeEvaluator(
                 addDiagnostic(DiagnosticRule.reportInvalidTypeForm, LocMessage.annotatedTypeArgMissing(), errorNode);
             } else {
                 type = validateAnnotatedMetadata(errorNode, typeArgs[0].type, typeArgs.slice(1));
+
+                if (
+                    isTypeVar(type) &&
+                    typeArgs
+                        .slice(1)
+                        .some(
+                            (typeArg) =>
+                                isClassInstance(typeArg.type) && typeArg.type.shared.name === '_LiteralType'
+                        )
+                ) {
+                    type.shared.retainLiterals = true;
+                }
             }
         }
 
@@ -17934,7 +17966,6 @@ export function createTypeEvaluator(
                 /* isTypeArgExplicit */ true
             )
         );
-
         return {
             type: TypeBase.cloneAsSpecialForm(type, annotatedType),
             isReadOnly: typeArgs[0].isReadOnly,
@@ -25455,6 +25486,34 @@ export function createTypeEvaluator(
         return getEffectiveReturnTypeResult(type).type;
     }
 
+    function getReturnsAfterValueType(type: Type): Type {
+        return mapSubtypes(type, (subtype) => {
+            if (
+                isClassInstance(subtype) &&
+                subtype.shared.name === 'ReturnsAfter' &&
+                subtype.priv.typeArgs?.length === 2
+            ) {
+                return subtype.priv.typeArgs[1];
+            }
+
+            return subtype;
+        });
+    }
+
+    function isReturnsAfterType(type: Type): boolean {
+        let isReturnsAfter = false;
+        doForEachSubtype(type, (subtype) => {
+            if (
+                isClassInstance(subtype) &&
+                subtype.shared.name === 'ReturnsAfter' &&
+                subtype.priv.typeArgs?.length === 2
+            ) {
+                isReturnsAfter = true;
+            }
+        });
+        return isReturnsAfter;
+    }
+
     function getInferredReturnType(type: FunctionType): Type {
         return getInferredReturnTypeResult(type).type;
     }
@@ -27477,6 +27536,10 @@ export function createTypeEvaluator(
     }
 
     function isLiteralPreservingTypeVar(type: TypeVarType): boolean {
+        if (type.shared.retainLiterals) {
+            return true;
+        }
+
         const annotatedType = type.props?.specialForm;
         if (!annotatedType || !ClassType.isBuiltIn(annotatedType, 'Annotated')) {
             return false;

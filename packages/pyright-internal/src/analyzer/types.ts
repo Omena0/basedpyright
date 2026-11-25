@@ -918,7 +918,7 @@ export namespace ClassType {
         }
 
         const newInstance = TypeBase.cloneTypeAsInstance(type, /* cache */ includeSubclasses);
-        if (newInstance.props?.specialForm) {
+        if (newInstance.props?.specialForm && newInstance.props.specialForm.shared.name !== 'Annotated') {
             TypeBase.setSpecialForm(newInstance, undefined);
         }
 
@@ -1955,7 +1955,7 @@ export namespace FunctionType {
         }
 
         const newInstance = TypeBase.cloneTypeAsInstance(type, /* cache */ true);
-        if (newInstance.props?.specialForm) {
+        if (newInstance.props?.specialForm && newInstance.props.specialForm.shared.name !== 'Annotated') {
             TypeBase.setSpecialForm(newInstance, undefined);
         }
         return newInstance;
@@ -2883,6 +2883,9 @@ export interface TypeVarDetailsShared {
 
     // Does this type variable originate from PEP 695 type parameter syntax?
     isTypeParamSyntax: boolean;
+
+    // Whether Annotated metadata requests that inferred literals be retained.
+    retainLiterals?: boolean;
 
     // Information about recursive type aliases.
     recursiveAlias: TypeAliasSharedInfo | undefined;

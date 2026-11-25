@@ -3887,6 +3887,10 @@ export class TypeVarTransformer {
 
                 replacementType = this.transformTypeVar(type, recursionCount) ?? type;
 
+                if (type.shared.retainLiterals && isTypeVar(replacementType)) {
+                    replacementType.shared.retainLiterals = true;
+                }
+
                 if (isParamSpec(type) && replacementType !== type) {
                     replacementType = simplifyFunctionToParamSpec(convertTypeToParamSpecValue(replacementType));
                 }
@@ -3911,6 +3915,13 @@ export class TypeVarTransformer {
                     this._pendingTypeVarTransformations.add(type.priv.scopeId);
                     replacementType = this.apply(replacementType, recursionCount);
                     this._pendingTypeVarTransformations.delete(type.priv.scopeId);
+                }
+
+                // Annotated metadata on a type variable must survive substitution.
+                // Inference markers applied through a generic type alias would
+                // otherwise be lost when the alias's TypeVar is replaced.
+                if (replacementType !== type && type.props?.specialForm && !replacementType.props?.specialForm) {
+                    replacementType = TypeBase.cloneAsSpecialForm(replacementType, type.props.specialForm);
                 }
             }
 

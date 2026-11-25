@@ -96,6 +96,10 @@ export function assignTypeVar(
     flags = AssignTypeFlags.Default,
     recursionCount = 0
 ): boolean {
+    if (destType.shared.retainLiterals) {
+        flags |= AssignTypeFlags.RetainLiteralsForTypeVar;
+    }
+
     let isAssignable: boolean;
 
     if (logConstraintsUpdates) {
