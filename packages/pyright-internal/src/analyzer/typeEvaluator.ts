@@ -17925,8 +17925,18 @@ export function createTypeEvaluator(
             addDiagnostic(DiagnosticRule.reportInvalidTypeForm, LocMessage.typeArgListNotAllowed(), typeArgs[0].node);
         }
 
+        // Preserve the metadata on the special-form wrapper. Most Annotated
+        // metadata is informational, but some metadata can affect inference.
+        const annotatedType = ClassType.cloneAsInstance(
+            ClassType.specialize(
+                classType,
+                typeArgs.map((typeArg) => typeArg.type),
+                /* isTypeArgExplicit */ true
+            )
+        );
+
         return {
-            type: TypeBase.cloneAsSpecialForm(type, ClassType.cloneAsInstance(classType)),
+            type: TypeBase.cloneAsSpecialForm(type, annotatedType),
             isReadOnly: typeArgs[0].isReadOnly,
             isRequired: typeArgs[0].isRequired,
             isNotRequired: typeArgs[0].isNotRequired,
@@ -26727,6 +26737,10 @@ export function createTypeEvaluator(
         }
 
         if (isTypeVar(destType)) {
+            if (isLiteralPreservingTypeVar(destType)) {
+                flags |= AssignTypeFlags.RetainLiteralsForTypeVar;
+            }
+
             if (isTypeVarSame(destType, srcType)) {
                 return true;
             }
@@ -27460,6 +27474,18 @@ export function createTypeEvaluator(
         });
 
         return isAssignable;
+    }
+
+    function isLiteralPreservingTypeVar(type: TypeVarType): boolean {
+        const annotatedType = type.props?.specialForm;
+        if (!annotatedType || !ClassType.isBuiltIn(annotatedType, 'Annotated')) {
+            return false;
+        }
+
+        const metadata = annotatedType.priv.typeArgs?.slice(1) ?? [];
+        return metadata.some(
+            (metadataType) => isClassInstance(metadataType) && metadataType.shared.name === '_LiteralType'
+        );
     }
 
     function isTypeFormClass(type: ClassType): boolean {
