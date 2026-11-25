@@ -158,6 +158,21 @@ if (process.platform !== 'win32' || !process.env['CI']) {
             },
         ]);
     });
+    test('yield ReturnsAfter', () => {
+        const result = inlayHintSampleFile('yield_returns_after.py', undefined, {
+            functionReturnTypes: false,
+            callArgumentNames: false,
+        });
+        tExpect(result).toStrictEqual([
+            {
+                inlayHintType: 'generic',
+                position: 403,
+                value: ' -> ReturnsAfter[Literal[1], None]',
+                imports: { importFroms: new Map([['typing', new Set(['Literal'])]]), imports: new Set() },
+            },
+        ]);
+    });
+
     test('generics', () => {
         const result = inlayHintSampleFile('generics.py', undefined, { genericTypes: true });
         tExpect(result).toStrictEqual([

@@ -1,0 +1,19 @@
+from typing import Annotated
+
+class _InferYieldType: ...
+
+class YieldTypeIs[T = _InferYieldType]: ...
+
+class _LiteralType: ...
+
+type LiteralType[T] = Annotated[T, _LiteralType()]
+
+class ReturnsAfter[Duration, T = None]: ...
+
+class Message: ...
+
+class Sleep[T: float](Message, YieldTypeIs[ReturnsAfter[T, None]]):
+    def __init__(self, duration: LiteralType[T]): ...
+
+def generator():
+    yield Sleep(1)

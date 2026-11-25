@@ -13,6 +13,7 @@ import {
     isParamSpec,
     isPositionOnlySeparator,
     isTypeVar,
+    combineTypes,
 } from '../analyzer/types';
 import { ProgramView } from '../common/extensibility';
 import { convertRangeToTextRange } from '../common/positionUtils';
@@ -34,7 +35,7 @@ import { ParseFileResults } from '../parser/parser';
 import { InlayHintSettings } from '../workspaceFactory';
 import { transformTypeForEnumMember } from './enums';
 import { ImportTracker, ImportTrackerResults } from './typePrinter';
-import { isLiteralType } from './typeUtils';
+import { doForEachSubtype, isLiteralType, specializeForBaseClass } from './typeUtils';
 
 export type TypeInlayHintsItemType = {
     inlayHintType: 'variable' | 'functionReturn' | 'parameter' | 'generic';
@@ -88,6 +89,20 @@ function isIgnoredBuiltin(type: FunctionType): boolean {
         return ignoredBuiltinTypes.has(type.shared.fullName);
     }
     return ignoredBuiltinFunctions.has(type.shared.fullName);
+}
+
+function isReturnsAfterType(type: Type): boolean {
+    let isReturnsAfter = false;
+    doForEachSubtype(type, (subtype) => {
+        if (
+            isClassInstance(subtype) &&
+            subtype.shared.name === 'ReturnsAfter' &&
+            subtype.priv.typeArgs?.length === 2
+        ) {
+            isReturnsAfter = true;
+        }
+    });
+    return isReturnsAfter;
 }
 
 export class TypeInlayHintsWalker extends ParseTreeWalker {
@@ -268,22 +283,55 @@ export class TypeInlayHintsWalker extends ParseTreeWalker {
         }
 
         const callResult = evaluator.getTypeResult(node);
+        let returnsAfterType: Type | undefined;
         if (callResult?.overloadsUsedForCall?.length === 1) {
             const returnType = FunctionType.getEffectiveReturnType(callResult.overloadsUsedForCall[0]);
-            if (
-                returnType &&
-                isClassInstance(returnType) &&
-                returnType.shared.name === 'ReturnsAfter' &&
-                returnType.priv.typeArgs?.length === 2
-            ) {
-                const { imports, value } = this._printType(node, returnType);
-                this.featureItems.push({
-                    inlayHintType: 'generic',
-                    position: this._endOfNode(node),
-                    value: ` -> ${value}`,
-                    imports: imports.result,
-                });
+            if (returnType && isReturnsAfterType(returnType)) {
+                returnsAfterType = returnType;
             }
+        }
+
+        // A yielded operation can declare its delay through YieldTypeIs[ReturnsAfter[...]].
+        // Constructor calls return the operation instance, so inspect its specialized base.
+        if (!returnsAfterType && callResult) {
+            const yieldedTypes: Type[] = [];
+            doForEachSubtype(callResult.type, (subtype) => {
+                if (!isClassInstance(subtype)) {
+                    return;
+                }
+                const yieldTypeIsBase = subtype.shared.mro.find(
+                    (baseClass) =>
+                        isClass(baseClass) &&
+                        baseClass.shared.name === 'YieldTypeIs' &&
+                        ClassType.getTypeParams(baseClass).length === 1 &&
+                        ClassType.getTypeParams(baseClass)[0].shared.isDefaultExplicit &&
+                        isClass(ClassType.getTypeParams(baseClass)[0].shared.defaultType) &&
+                        (ClassType.getTypeParams(baseClass)[0].shared.defaultType as ClassType).shared.name ===
+                            '_InferYieldType'
+                );
+                if (!yieldTypeIsBase || !isClass(yieldTypeIsBase)) {
+                    return;
+                }
+
+                const specializedBase = specializeForBaseClass(subtype, yieldTypeIsBase);
+                const yieldType = specializedBase.priv.typeArgs?.[0];
+                if (yieldType && isReturnsAfterType(yieldType)) {
+                    yieldedTypes.push(yieldType);
+                }
+            });
+            if (yieldedTypes.length > 0) {
+                returnsAfterType = combineTypes(yieldedTypes);
+            }
+        }
+
+        if (returnsAfterType) {
+            const { imports, value } = this._printType(node, returnsAfterType);
+            this.featureItems.push({
+                inlayHintType: 'generic',
+                position: this._endOfNode(node),
+                value: ` -> ${value}`,
+                imports: imports.result,
+            });
         }
 
         const execEnv = this._program.configOptions.findExecEnvironment(this._fileUri);
