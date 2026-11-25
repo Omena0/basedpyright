@@ -1736,7 +1736,7 @@ export function createTypeEvaluator(
         } else if (node.d.isInteger) {
             typeResult = { type: cloneBuiltinObjectWithLiteral(node, 'int', node.d.value) };
         } else {
-            typeResult = { type: getBuiltInObject(node, 'float') };
+            typeResult = { type: cloneBuiltinObjectWithLiteral(node, 'float', node.d.value) };
         }
         return typeResult;
     }
@@ -17382,8 +17382,13 @@ export function createTypeEvaluator(
                     });
                 }
             } else if (itemExpr.nodeType === ParseNodeType.Number) {
-                if (!itemExpr.d.isImaginary && itemExpr.d.isInteger) {
-                    type = cloneBuiltinClassWithLiteral(node, classType, 'int', itemExpr.d.value);
+                if (!itemExpr.d.isImaginary) {
+                    type = cloneBuiltinClassWithLiteral(
+                        node,
+                        classType,
+                        itemExpr.d.isInteger ? 'int' : 'float',
+                        itemExpr.d.value
+                    );
                 }
             } else if (itemExpr.nodeType === ParseNodeType.Constant) {
                 if (itemExpr.d.constType === KeywordType.True) {
@@ -17396,11 +17401,11 @@ export function createTypeEvaluator(
             } else if (itemExpr.nodeType === ParseNodeType.UnaryOperation) {
                 if (itemExpr.d.operator === OperatorType.Subtract || itemExpr.d.operator === OperatorType.Add) {
                     if (itemExpr.d.expr.nodeType === ParseNodeType.Number) {
-                        if (!itemExpr.d.expr.d.isImaginary && itemExpr.d.expr.d.isInteger) {
+                        if (!itemExpr.d.expr.d.isImaginary) {
                             type = cloneBuiltinClassWithLiteral(
                                 node,
                                 classType,
-                                'int',
+                                itemExpr.d.expr.d.isInteger ? 'int' : 'float',
                                 itemExpr.d.operator === OperatorType.Subtract
                                     ? -itemExpr.d.expr.d.value
                                     : itemExpr.d.expr.d.value

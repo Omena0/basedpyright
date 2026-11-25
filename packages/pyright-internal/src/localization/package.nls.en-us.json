@@ -761,7 +761,7 @@
             "comment": "{Locked='Literal'}"
         },
         "literalUnsupportedType": {
-            "message": "Type arguments for \"Literal\" must be None, a literal value (int, bool, str, or bytes), or an enum value",
+            "message": "Type arguments for \"Literal\" must be None, a literal value (int, float, bool, str, or bytes), or an enum value",
             "comment": "{Locked='Literal','None','int','bool','str','bytes','enum'}"
         },
         "matchIncompatible": {

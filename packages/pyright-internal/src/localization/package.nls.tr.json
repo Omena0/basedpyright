@@ -311,7 +311,7 @@
         "literalNamedUnicodeEscape": "Adlandırılmış unicode kaçış sıraları “Literal” dize ek açıklamalarında desteklenmiyor",
         "literalNotAllowed": "\"Literal\" bir tür bağımsız değişken olmadan bu bağlamda kullanılamaz",
         "literalNotCallable": "Literal type cannot be instantiated",
-        "literalUnsupportedType": "Type arguments for \"Literal\" must be None, a literal value (int, bool, str, or bytes), or an enum value",
+        "literalUnsupportedType": "Type arguments for \"Literal\" must be None, a literal value (int, float, bool, str, or bytes), or an enum value",
         "matchIncompatible": "Match statements require Python 3.10 or newer",
         "matchIsNotExhaustive": "Cases within match statement do not exhaustively handle all values",
         "maxParseDepthExceeded": "Maksimum ayrıştırma derinliği aşıldı; ifadeyi daha küçük alt ifadelere bölün",

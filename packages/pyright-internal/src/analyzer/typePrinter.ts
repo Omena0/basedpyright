@@ -205,6 +205,9 @@ export function printLiteralValue(type: ClassType, quotation = "'", importTracke
         }
     } else {
         literalStr = literalValue.toString();
+        if (type.shared.name === 'float' && Number.isInteger(literalValue) && !literalStr.includes('e')) {
+            literalStr += '.0';
+        }
     }
 
     return literalStr;
