@@ -1018,6 +1018,7 @@ export class Checker extends ParseTreeWalker {
 
         if (this._evaluator.isNodeReachable(node, /* sourceNode */ undefined) && enclosingFunctionNode) {
             if (declaredReturnType) {
+                declaredReturnType = this._getReturnsAfterValueType(declaredReturnType);
                 if (isNever(declaredReturnType)) {
                     this._evaluator.addDiagnostic(
                         DiagnosticRule.reportGeneralTypeIssues,
@@ -4906,6 +4907,8 @@ export class Checker extends ParseTreeWalker {
                 this._reportUnknownReturnResult(node, declaredReturnType);
                 this._validateReturnTypeIsNotContravariant(declaredReturnType, returnAnnotation);
 
+                declaredReturnType = this._getReturnsAfterValueType(declaredReturnType);
+
                 const liveScopes = ParseTreeUtils.getTypeVarScopesForNode(node, this._nodeInfo);
                 declaredReturnType = makeTypeVarsBound(declaredReturnType, liveScopes);
             }
@@ -4960,6 +4963,18 @@ export class Checker extends ParseTreeWalker {
             this._reportUnknownReturnResult(node, inferredReturnType);
             this._validateReturnTypeIsNotContravariant(inferredReturnType, node.d.name);
         }
+    }
+
+    private _getReturnsAfterValueType(type: Type): Type {
+        if (
+            isClassInstance(type) &&
+            type.shared.name === 'ReturnsAfter' &&
+            type.priv.typeArgs?.length === 2
+        ) {
+            return type.priv.typeArgs[1];
+        }
+
+        return type;
     }
 
     private _validateReturnTypeIsNotContravariant(returnType: Type, errorNode: ExpressionNode) {
