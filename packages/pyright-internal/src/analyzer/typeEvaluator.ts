@@ -16488,7 +16488,7 @@ export function createTypeEvaluator(
                 return;
             }
 
-            yieldTypes.push(declaredYieldType);
+            yieldTypes.push(getReturnsAfterValueType(declaredYieldType));
         });
 
         return yieldTypes.length > 0 ? combineTypes(yieldTypes) : undefined;
